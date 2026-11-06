@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>KSST 演唱技能树</title>
 <style>
 :root{--bg:#0a0e1a;--panel:#111726;--panel2:#0d1220;--line:#1e2740;--txt:#e6ecff;--dim:#7d89a8;--acc:#8b9cff;}
@@ -145,6 +145,136 @@ h1 .grad{background:linear-gradient(92deg,#a5c2ff,#c9a5ff 45%,#ffb6d9);-webkit-b
 .qpending{font-size:12.5px;color:#c9a5ff;margin-top:12px;display:none}
 .qpending.show{display:block}
 .foot{margin-top:26px;color:#4a5470;font-size:11px;line-height:1.8;text-align:center}
+
+/* ---------- 清空进度确认弹层（不用 window.confirm，微信内置浏览器会吞掉它） ---------- */
+#confirmbox{position:fixed;inset:0;z-index:400;display:none;place-items:center;
+ padding:16px;background:rgba(4,8,18,.72);backdrop-filter:blur(6px)}
+#confirmbox.show{display:grid}
+.confirm{width:min(380px,100%);background:var(--panel);border:1px solid var(--line);
+ border-radius:18px;padding:22px 20px 18px;box-shadow:0 30px 80px -20px rgba(0,0,0,.7)}
+.ctitle{font-size:17px;font-weight:700;letter-spacing:.3px;margin-bottom:10px}
+.cdesc{font-size:13px;color:var(--dim);line-height:1.7;margin-bottom:18px}
+.cbtns{display:flex;gap:10px}
+.cbtn{flex:1;min-height:46px;border:0;border-radius:11px;padding:12px;font-size:14px;
+ font-weight:700;cursor:pointer;color:#fff}
+#ccancel{background:rgba(255,255,255,.08);color:var(--dim)}
+#cok{background:#ff5d7a}
+
+/* ---------- 触屏基础 ---------- */
+html{-webkit-text-size-adjust:100%}
+body{-webkit-tap-highlight-color:transparent}
+/* 横滑筛选条里的按钮：禁用双击缩放/长按选择，保证 tap 稳定触发 click */
+.fbtn{touch-action:manipulation;-webkit-user-select:none;user-select:none}
+#dclose{display:none}
+/* 触屏上没有 hover，避免点完卡片后高亮/位移「粘」在屏幕上 */
+@media(hover:none){
+ .node:hover{border-color:var(--line);transform:none}
+ .qopt:hover{transform:none}
+ .fbtn:hover{color:var(--dim);border-color:var(--line)}
+}
+/* 老版内核不支持 color-mix 时的兜底色，避免手机上卡片变灰 */
+@supports not (color:color-mix(in srgb,red 50%,blue)){
+ .bicon,.dicon{background:rgba(255,255,255,.08);border-color:var(--line)}
+ .node.st-ready{border-color:#3a4768}
+ .node.glow::after{background:rgba(255,255,255,.05)}
+ .node.ultra{background:linear-gradient(160deg,#2a2410,var(--panel2))}
+ .qtag{border-color:#3a4768;background:rgba(255,255,255,.06)}
+ .badge.boss,.badge.ultra{border-color:#ffd24a55}
+ .badge.major{border-color:#ff5d7a55}
+ .badge.pick{border-color:#ffb45455}
+ .toast{background:#111726;border-color:#5ee0a0}
+}
+
+/* ---------- 手机排版（≤768px） ---------- */
+@media(max-width:768px){
+ body{padding:14px 12px 26px;padding-bottom:calc(26px + env(safe-area-inset-bottom));max-width:100%;overflow-x:hidden}
+ h1{font-size:23px;letter-spacing:.5px}
+ .sub{font-size:12px;line-height:1.6;margin-top:7px}
+ .stats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+ .stat{min-width:0;padding:10px 12px;border-radius:12px}
+ .stat b{font-size:19px}
+ .stats .stat:last-child b{font-size:12px!important;line-height:1.45;display:block;margin-top:3px;overflow-wrap:anywhere}
+ .progwrap{margin-top:12px}
+ /* 筛选条改成横向滑动，不再占掉三四行 */
+ .toolbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;
+   margin:16px -12px 10px;padding:0 12px 6px;gap:8px}
+ .toolbar::-webkit-scrollbar{display:none}
+ .fbtn{flex:0 0 auto;white-space:nowrap;padding:9px 14px;font-size:12.5px;min-height:38px}
+ #reset{margin-left:0}
+ .layout{display:block}
+ #tree{gap:16px}
+ .branch{padding:14px 12px 16px;border-radius:16px}
+ .bhead{gap:10px;margin-bottom:13px}
+ .bicon{font-size:23px;width:42px;height:42px;border-radius:12px}
+ .bt{font-size:15.5px}
+ .bs{font-size:11.5px;line-height:1.45}
+ .bprog{flex:0 0 58px;font-size:11px}
+ /* 卡片单列，阅读与点击都更舒服 */
+ .nodes{grid-template-columns:1fr;gap:11px}
+ .node{padding:14px;border-radius:14px}
+ .nt{font-size:15.5px}
+ .badge{font-size:10px;padding:2px 7px}
+ .none{font-size:13px;line-height:1.6}
+ .lock{font-size:11.5px;line-height:1.5}
+ .reg{font-size:11.5px;line-height:1.55}
+ .ratio{margin:2px 0 10px}
+ .rmeta{font-size:10.5px}
+ .act{min-height:44px;padding:11px 12px;font-size:13.5px;border-radius:11px}
+ /* 详情：从「右侧常驻面板」改为「全屏浮层」，点卡片才升起 */
+ #detailbox{position:fixed;inset:0;top:0;z-index:250;height:100vh;height:100dvh;
+   border:0;border-radius:0;box-shadow:none;
+   transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
+ #detailbox.show{transform:translateY(0);border-color:transparent}
+ #dclose{display:block;position:absolute;right:12px;top:10px;top:calc(10px + env(safe-area-inset-top));
+   z-index:3;border:1px solid var(--line);background:rgba(17,23,38,.94);color:var(--dim);
+   border-radius:99px;padding:8px 15px;font-size:12.5px;cursor:pointer;min-height:38px}
+ #detail{padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch;
+   padding-top:calc(54px + env(safe-area-inset-top));
+   padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+ .dhead{gap:12px;padding-bottom:14px;margin-bottom:14px}
+ .dicon{font-size:26px;width:46px;height:46px;border-radius:13px}
+ .dtitle{font-size:19px}
+ .dsub{font-size:12.5px;line-height:1.5}
+ .dgrid{grid-template-columns:1fr;gap:11px}
+ .dfull,.df{padding:13px}
+ .dfull p,.df p{font-size:13.5px;line-height:1.7}
+ .chip{font-size:11.5px;padding:5px 10px}
+ .dlock{font-size:12.5px;line-height:1.6}
+ /* 操作按钮吸在详情底部，内容再长也不用滚到底才点得到 */
+ .dfoot{position:sticky;bottom:0;background:var(--panel);z-index:2;flex-wrap:wrap;
+   margin:0 -16px;padding:12px 16px 14px;padding-bottom:calc(14px + env(safe-area-inset-bottom));gap:9px}
+ .dact{flex:1 1 100%;min-height:46px;padding:13px;font-size:14px}
+ .epanel{padding:14px;border-radius:15px;margin-top:16px}
+ .ename{width:72px;flex:0 0 72px;font-size:11.5px}
+ .enote{font-size:10.5px}
+ /* 答题弹窗：限高 + 内部滚动，长题目不会被裁掉 */
+ #quizbox{padding:12px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+ .quiz{width:100%;max-width:none;border-radius:18px;overflow-y:auto;-webkit-overflow-scrolling:touch;
+   max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);
+   padding:18px 15px 18px;padding-bottom:calc(18px + env(safe-area-inset-bottom))}
+ .quiz::before{display:none}
+ .qtitle{font-size:16.5px;line-height:1.45;margin:10px 0 5px}
+ .qstem{font-size:12.5px;line-height:1.6;margin-bottom:14px}
+ .qopts{gap:9px;margin-bottom:14px}
+ .qopt{min-height:48px;padding:13px 12px;font-size:13.5px;line-height:1.55;gap:10px;border-radius:12px}
+ .qkey{flex:0 0 26px;height:26px;font-size:12px}
+ .qbtn{min-height:46px;padding:13px 18px;font-size:14px}
+ .qfeedback{font-size:12.5px;line-height:1.6;padding:11px 12px}
+ .qpending{font-size:12px;line-height:1.6}
+ .toast{left:12px;right:12px;bottom:22px;bottom:calc(22px + env(safe-area-inset-bottom));
+   transform:translateY(18px);max-width:none;text-align:center;
+   font-size:12.5px;line-height:1.5;padding:11px 16px;border-radius:14px}
+ .toast.in{transform:translateY(0)}
+ .foot{font-size:10.5px;line-height:1.75;margin-top:20px;padding:0 4px}
+ /* 清空进度确认弹层 */
+ #confirmbox{padding:14px}
+ .confirm{padding:20px 16px 16px;border-radius:16px}
+ .ctitle{font-size:16.5px}
+ .cdesc{font-size:12.5px;line-height:1.7}
+ .cbtn{min-height:48px;font-size:14px;padding:13px}
+ /* 详情浮层打开时锁住背景滚动 */
+ body.dopen{overflow:hidden}
+}
 </style>
 </head>
 <body>
@@ -172,7 +302,8 @@ h1 .grad{background:linear-gradient(92deg,#a5c2ff,#c9a5ff 45%,#ffb6d9);-webkit-b
 <div class="layout">
  <div id="tree"></div>
  <div id="detailbox">
-  <div id="detail"><div class="empty">载入中…</div></div>
+  <button id="dclose" type="button" aria-label="关闭详情">✕ 关闭</button>
+  <div id="detail"><div class="empty">点击任意技能点，查看课程详情</div></div>
  </div>
 </div>
 
@@ -409,8 +540,10 @@ var QUIZ = {
     return;
   }
 
-  /* ---------- 存档 ---------- */
-  var store = { lit: {}, picks: {}, major: {}, exams: {} };
+  /* ---------- 存档 ----------
+     everLit：记录「曾经成功点亮过」的课程。撤销只清 lit，不动 everLit；
+     只有「清空进度」会把它一起抹掉，届时所有课程重新需要答题。 */
+  var store = { lit: {}, picks: {}, major: {}, exams: {}, everLit: {} };
   try {
     var raw = localStorage.getItem(LS_KEY);
     if (raw) {
@@ -423,6 +556,15 @@ var QUIZ = {
       }
       store = Object.assign(store, parsed);
       if (!store.major || typeof store.major !== "object") store.major = {};
+      /* 兼容没有 everLit 的旧存档：把当前已点亮的节点补记为「曾点亮过」，
+         否则老用户撤销一个已学课程后会被要求重新答题。 */
+      if (!store.everLit || typeof store.everLit !== "object") store.everLit = {};
+      if (!parsed.everLit) {
+        Object.keys(store.lit || {}).forEach(function (k) {
+          if (store.lit[k]) store.everLit[k] = true;
+        });
+        save();   /* 补记结果立刻落盘，避免老用户下次进来又走一遍迁移 */
+      }
     }
   } catch (e) {}
 
@@ -711,6 +853,8 @@ var QUIZ = {
     d.innerHTML = body + '<div class="dfoot">' + foot + '</div>';
     d.scrollTop = 0;
     document.getElementById("detailbox").classList.add("show");
+    /* 手机端详情是全屏浮层，打开时锁住背景滚动；桌面常驻面板不需要 */
+    if (window.matchMedia("(max-width:768px)").matches) document.body.classList.add("dopen");
   }
 
   /* ---------- 交互 ---------- */
@@ -968,6 +1112,11 @@ var QUIZ = {
   function light(id) {
     var n = byId(id);
     if (status(id) !== "ready") return;
+    /* 曾点亮过（撤销后重学）→ 免答题直接点亮；只有「清空进度」会抹掉这个记录 */
+    if (store.everLit[id]) {
+      doLight(id, true);
+      return;
+    }
     var q = QUIZ[id];
     /* 有题库（三关）且非 pending：先弹窗答题，三关全对才点亮 */
     if (q && !q.pending && q.levels && q.levels.length) {
@@ -983,8 +1132,21 @@ var QUIZ = {
     doLight(id);
   }
 
-  /* 真正执行点亮逻辑（答题通过 / pending 节点 / 无题库节点 走到这里） */
-  function doLight(id) {
+  /* 点亮 / 撤销 / 取消选学之后的详情处理：
+     手机端详情是全屏浮层 → 收起并回到技能树，绝不自动弹出；
+     桌面端详情是常驻右栏 → 只刷新内容（本来就没收起，不算弹出）。 */
+  function afterStateChange(id) {
+    if (window.matchMedia("(max-width:768px)").matches) {
+      closeDetail();
+      detail._last = null;
+    } else if (detail._last === id) {
+      detail(id);
+    }
+  }
+
+  /* 真正执行点亮逻辑（答题通过 / 免答重学 / pending 节点 / 无题库节点 走到这里）
+     free = true 表示「曾点亮过，撤销后免答题直接点亮」 */
+  function doLight(id, free) {
     var n = byId(id);
     if (status(id) !== "ready" && !store.lit[id]) return;
     if (n.pick) {
@@ -1000,11 +1162,11 @@ var QUIZ = {
       toast("已选择「" + labelOf(n.major) + "」专攻（" + majorCount() + "/1 种，基本要求 1 种，多学也可）", "#ff5d7a");
     }
     store.lit[id] = true;
+    store.everLit[id] = true;   /* 记为「曾点亮过」，撤销后再次点亮免答题 */
     if (n.boss) store.exams[id] = true;
     save(); render();
-    var still = byId(id);
-    if (still && detail._last === id) detail(id);
-    toast("✨ 点亮「" + n.n + "」", n.col);
+    afterStateChange(id);
+    toast(free ? "📖 已通过考核，直接点亮「" + n.n + "」" : "✨ 点亮「" + n.n + "」", n.col);
     if (n.boss) { confetti(); toast("🏆 「" + n.n + "」通关！进入下一阶段", "#ffd24a"); }
     if (id === "k3exam") toast("💎 「高级考核 · 毕业演出」通关！进入下一阶段", "#ffd24a");
   }
@@ -1031,13 +1193,13 @@ function undo(id) {
       else toast("专攻线「" + labelOf(n.major) + "」已撤销（剩余 " + majorCount() + " 条专攻）", "#ffb454");
     }
     if (n.pick) store.picks[id] = false;
-    save(); render(); detail(id);
+    save(); render(); afterStateChange(id);
     toast("已撤销「" + n.n + "」", "#8892b0");
   }
   function unpick(id) {
     store.picks[id] = false;
     store.lit[id] = false;
-    save(); render(); detail(id);
+    save(); render(); afterStateChange(id);
     toast("已取消选学", "#8892b0");
   }
 
@@ -1057,8 +1219,15 @@ function undo(id) {
     handler(e);
   });
   document.getElementById("detail").addEventListener("click", handler);
+  function closeDetail() {
+    /* 桌面端详情是常驻右栏，不做关闭；仅手机端收起全屏浮层 */
+    if (!window.matchMedia("(max-width:768px)").matches) return;
+    document.getElementById("detailbox").classList.remove("show");
+    document.body.classList.remove("dopen");
+  }
+  document.getElementById("dclose").addEventListener("click", closeDetail);
   document.getElementById("detailbox").addEventListener("click", function (e) {
-    if (e.target.id === "detailbox") document.getElementById("detailbox").classList.remove("show");
+    if (e.target.id === "detailbox") closeDetail();
   });
 
   /* 筛选按钮 */
@@ -1071,16 +1240,46 @@ function undo(id) {
     render();
   });
 
-  document.getElementById("reset").addEventListener("click", function () {
-    if (!confirm("清空本机所有点亮进度？")) return;
-    store = { lit: {}, picks: {}, major: {}, exams: {} };
-    save(); render(); toast("进度已清空，重新出发 🌱", "#8892b0");
-  });
+  /* ---------- 清空进度 ----------
+     不用 window.confirm：微信内置浏览器 / 部分安卓 WebView 会拦截原生弹窗，
+     点了「清空进度」就像没反应。改成页面内自定义确认弹层。 */
+  var cBox = null, cCancel = null, cOk = null, cBound = false;
+  function ensureConfirmDom() {
+    if (cBox) return;   /* 弹层写在所有 script 之后，首次点击时再取元素 */
+    cBox = document.getElementById("confirmbox");
+    cCancel = document.getElementById("ccancel");
+    cOk = document.getElementById("cok");
+    if (cBound || !cBox) return;
+    cBound = true;
+    cCancel.addEventListener("click", closeConfirm);
+    cOk.addEventListener("click", doReset);
+    cBox.addEventListener("click", function (e) { if (e.target === cBox) closeConfirm(); });
+  }
+  function openConfirm() { ensureConfirmDom(); if (cBox) cBox.classList.add("show"); }
+  function closeConfirm() { if (cBox) cBox.classList.remove("show"); }
+  function doReset() {
+    closeConfirm();
+    store = { lit: {}, picks: {}, major: {}, exams: {}, everLit: {} };
+    save(); render();
+    if (window.matchMedia("(max-width:768px)").matches) {
+      /* 手机端：收起详情浮层并把内容复位，回到技能树 */
+      closeDetail();
+      detail._last = null;
+      document.getElementById("detail").innerHTML = '<div class="empty">点击任意技能点，查看课程详情</div>';
+    } else {
+      /* 桌面端右栏常驻：重新显示首个节点 */
+      var first = document.querySelector("#tree .node");
+      if (first) detail(first.dataset.id);
+    }
+    toast("进度已清空，重新出发 🌱", "#8892b0");
+  }
+  document.getElementById("reset").addEventListener("click", openConfirm);
 
   /* ---------- 启动 ---------- */
   render();
+  /* 手机端详情是浮层，进页面不自动弹出；桌面端仍常驻显示首个节点 */
   var first = document.querySelector(".node");
-  if (first) detail(first.dataset.id);
+  if (first && !window.matchMedia("(max-width:768px)").matches) detail(first.dataset.id);
   var ready = ALL.filter(function (n) { return status(n.id) === "ready"; });
   toast("技能树已加载 · " + ALL.length + " 个技能点 · 点亮「" + (ready[0] ? ready[0].n : "根系") + "」开始", "#5ee0a0");
 })();
@@ -1101,6 +1300,17 @@ function undo(id) {
     </div>
     <div class="qfeedback" id="qfeedback"></div>
     <div class="qpending" id="qpending">📝 该课程暂无正式题库（知识 / 技术 / 态度三关待定），可跳过直接点亮</div>
+  </div>
+</div>
+<!-- 清空进度确认弹层 -->
+<div id="confirmbox">
+  <div class="confirm">
+    <div class="ctitle">🗑 清空进度？</div>
+    <div class="cdesc">将清除本机所有已点亮技能点、选学、专攻与「曾点亮过」记录。清空后，所有课程都需要重新答题才能点亮。此操作不可撤销。</div>
+    <div class="cbtns">
+      <button class="cbtn" id="ccancel" type="button">取消</button>
+      <button class="cbtn" id="cok" type="button">确认清空</button>
+    </div>
   </div>
 </div>
 </body>
